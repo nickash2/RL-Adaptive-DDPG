@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from stable_baselines3 import DDPG
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.evaluation import evaluate_policy
-from utils.tracker_callback import MetricsTrackerCallback  # Make sure the callback is correctly imported
+from src.utils.tracker_callback import MetricsTrackerCallback  # Make sure the callback is correctly imported
 import pickle
 
 def create_env(env_name="InvertedDoublePendulum-v4"):
@@ -17,7 +17,7 @@ def create_env(env_name="InvertedDoublePendulum-v4"):
 
 
 def train_ddpg(env, total_timesteps=100000, model_path="ddpg_inverted_double_pendulum"):
-    """
+    """ 
     Trains a DDPG model on the provided environment.
     :param env: The Gym environment.
     :param total_timesteps: Number of timesteps to train.
