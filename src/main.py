@@ -5,6 +5,7 @@ from stable_baselines3 import DDPG
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.evaluation import evaluate_policy
 from utils.tracker_callback import MetricsTrackerCallback  # Make sure the callback is correctly imported
+import pickle
 
 def create_env(env_name="InvertedDoublePendulum-v4"):
     """
@@ -23,7 +24,7 @@ def train_ddpg(env, total_timesteps=100000, model_path="ddpg_inverted_double_pen
     :param model_path: Path to save the trained model.
     :return: Trained DDPG model.
     """
-    model = DDPG("MlpPolicy", env, verbose=0)
+    model = DDPG("MlpPolicy", env, seed=11, verbose=0)
     
     # Create the callback
     metrics_callback = MetricsTrackerCallback(eval_env=env, verbose=1)
@@ -32,42 +33,45 @@ def train_ddpg(env, total_timesteps=100000, model_path="ddpg_inverted_double_pen
     model.learn(total_timesteps=total_timesteps, callback=metrics_callback)
     model.save(model_path)
     
-    # Optionally, after training, you can access the metrics stored in the callback
-    tracked_metrics = metrics_callback.get_tracked_metrics()
-    print(f"Tracked metrics (Rewards and Lengths): {tracked_metrics}")
-    
     return model, metrics_callback
 
-def plot_rewards(metrics_tracker, title="Rewards over Episodes (DDPG on Inverted Double Pendulum)"):
+def plot_rewards(metrics_tracker, window_size=10, title="Rewards over Episodes (DDPG on Inverted Double Pendulum)"):
     """
-    Plots the episode rewards and lengths tracked by the MetricsTrackerCallback.
+    Plots the episode rewards with a running average and its standard deviation.
     :param metrics_tracker: The MetricsTrackerCallback object that stores the tracked data.
+    :param window_size: The window size for the moving average and standard deviation (default: 10).
     :param title: Title of the plot.
     """
-    # Retrieve the tracked episode rewards and lengths
     episode_rewards = metrics_tracker.get_tracked_metrics()['episode_rewards']
-    episode_lengths = metrics_tracker.get_tracked_metrics()['episode_lengths']
+    # Save episode rewards as pkl
+    with open('episode_rewards.pkl', 'wb') as f:
+        pickle.dump(episode_rewards, f)
+    
+    # Calculate the running average (moving average)
+    running_avg = np.convolve(episode_rewards, np.ones(window_size) / window_size, mode='valid')
+    
+    # Calculate the standard deviation for the same window size
+    running_std = [np.std(episode_rewards[i-window_size+1:i+1]) if i >= window_size-1 else 0 for i in range(len(episode_rewards))]
 
-    # Create an array for episode numbers (1, 2, 3, ...)
     episodes = np.arange(1, len(episode_rewards) + 1)
 
-    # Plot the rewards over episodes
     plt.figure(figsize=(10, 6))
-    plt.plot(episodes, episode_rewards, label="Episode Rewards", color='b')
+    plt.plot(episodes, episode_rewards, label="Episode Rewards", color='b', alpha=0.6)
+    plt.plot(episodes[window_size-1:], running_avg, label=f"Running Average (Window = {window_size})", color='r', linewidth=2)
+    plt.fill_between(episodes[window_size-1:], 
+                     running_avg - running_std[window_size-1:], 
+                     running_avg + running_std[window_size-1:], 
+                     color='r', alpha=0.2, label="Standard Deviation")
 
-    # Optionally, you can plot episode lengths as well
-    plt.plot(episodes, episode_lengths, label="Episode Lengths", color='g', linestyle='--')
-
-    # Adding labels and title
     plt.xlabel("Episode")
-    plt.ylabel("Reward / Length")
+    plt.ylabel("Reward")
     plt.title(title)
     plt.legend()
     plt.grid()
 
-    # Save the plot as a PNG file
-    plt.savefig("rewards.png")
+    plt.savefig("rewards_smoothed.png")
     plt.show()
+
 
 
 def main():
@@ -78,7 +82,7 @@ def main():
     env = create_env()
 
     # Train DDPG with callback
-    model, tracker = train_ddpg(env, total_timesteps=10000)
+    model, tracker = train_ddpg(env, total_timesteps=100000)
     print("Training complete!")
 
 

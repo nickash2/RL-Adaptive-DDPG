@@ -72,19 +72,19 @@ class MetricsTrackerCallback(BaseCallback):
         """
         Evaluate the agent on the evaluation environment.
         """
-        obs, _ = self.eval_env.reset()  # Unpack the tuple returned by reset
-        done = False
+        obs, _ = self.eval_env.reset()
         eval_reward = 0
 
-        while not done:
+        while True:
             action, _ = self.model.predict(obs, deterministic=True)
-            obs, reward, done, info, _ = self.eval_env.step(action)  # Step
+            next_obs, reward, terminated, truncated, info = self.eval_env.step(action)
 
             eval_reward += reward
 
             # If the environment is done, reset it
-            if done:
-                obs, _ = self.eval_env.reset()  # Reset environment if done
+            if terminated or truncated:
+                obs, _ = self.eval_env.reset()
+                break
 
         if self.verbose > 0:
             print(f"Evaluation Reward: {eval_reward}")
