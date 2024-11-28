@@ -1,6 +1,7 @@
 import numpy as np
 import gymnasium as gym
 from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.evaluation import evaluate_policy
 
 
 class MetricsTrackerCallback(BaseCallback):
@@ -19,6 +20,8 @@ class MetricsTrackerCallback(BaseCallback):
         self.episode_idx = 0
         self.episode_reward = 0
         self.episode_length = 0
+        self.mean_rewards = []
+        self.std_rewards = []
 
     def _on_training_start(self) -> None:
         """
@@ -72,22 +75,12 @@ class MetricsTrackerCallback(BaseCallback):
         """
         Evaluate the agent on the evaluation environment.
         """
-        obs, _ = self.eval_env.reset()
-        eval_reward = 0
+        mean_reward, std_reward = evaluate_policy(self.model, self.eval_env, n_eval_episodes=10, deterministic=True)
 
-        while True:
-            action, _ = self.model.predict(obs, deterministic=True)
-            next_obs, reward, terminated, truncated, info = self.eval_env.step(action)
-
-            eval_reward += reward
-
-            # If the environment is done, reset it
-            if terminated or truncated:
-                obs, _ = self.eval_env.reset()
-                break
-
+        self.mean_rewards.append(mean_reward)
+        self.std_rewards.append(std_reward)
         if self.verbose > 0:
-            print(f"Evaluation Reward: {eval_reward}")
+            print(f"Mean Evaluation Reward: {mean_reward} +/- {std_reward}")
 
 
     def get_tracked_metrics(self):
