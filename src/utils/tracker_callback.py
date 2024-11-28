@@ -62,9 +62,9 @@ class MetricsTrackerCallback(BaseCallback):
         if self.verbose > 0:
             print(f"Episode {self.episode_idx}: Reward = {self.episode_reward}, Length = {self.episode_length}")
 
-        # Optional evaluation step
-        if self.eval_env is not None:
-            self._evaluate_policy()
+        # # Optional evaluation step
+        # if self.eval_env is not None:
+        #     self._evaluate_policy()
 
         # Reset metrics for the next episode
         self.episode_reward = 0
@@ -75,7 +75,7 @@ class MetricsTrackerCallback(BaseCallback):
         """
         Evaluate the agent on the evaluation environment.
         """
-        mean_reward, std_reward = evaluate_policy(self.model, self.eval_env, n_eval_episodes=10, deterministic=True)
+        mean_reward, std_reward = evaluate_policy(self.model, self.eval_env, n_eval_episodes=100, deterministic=True)
 
         self.mean_rewards.append(mean_reward)
         self.std_rewards.append(std_reward)
