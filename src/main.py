@@ -163,7 +163,7 @@ def objective(trial, tracker=None):
     
     metrics_callback = MetricsTrackerCallback(tracker)
     
-    model.learn(total_timesteps=50000, callback=[metrics_callback])
+    model.learn(total_timesteps=100000, callback=[metrics_callback])
     
     mean_reward = tracker.get_avg_return()
     print(f"Mean reward: {mean_reward}")
