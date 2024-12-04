@@ -28,8 +28,8 @@ def train_ddpg(env, total_timesteps=50000, model_path="ddpg_inverted_pendulum"):
     :return: Trained DDPG model.
     """
 
-    noise_std = 0.2
-    noise = OrnsteinUhlenbeckActionNoise(
+    noise_std = 0.1672
+    noise = NormalActionNoise(
         mean=np.zeros(env.action_space.shape),
         sigma=noise_std * np.ones(env.action_space.shape)
     )
@@ -37,11 +37,11 @@ def train_ddpg(env, total_timesteps=50000, model_path="ddpg_inverted_pendulum"):
         "MlpPolicy", 
         env, 
         verbose=1,
-        learning_rate=0.0005,
-        buffer_size=100000,
-        batch_size=32,
-        tau=0.005,
-        gamma=0.99,
+        learning_rate=0.0004907223799806416,
+        buffer_size=80434,
+        batch_size=128,
+        tau=0.006594179846050085,
+        gamma=0.97,
         action_noise=noise,
         seed=10
     )
@@ -58,7 +58,7 @@ def train_ddpg(env, total_timesteps=50000, model_path="ddpg_inverted_pendulum"):
     return model, metrics_callback
 
 
-def plot_rewards(metrics_tracker=None, window_size=10, title="Rewards over Episodes (DDPG on Pendulum)", episode_rewards=None):
+def plot_rewards(metrics_tracker=None, window_size=10, title="Rewards over Episodes (DDPG on Inverted Pendulum)", episode_rewards=None):
     """
     Plots the episode rewards with a running average and its standard deviation.
     :param metrics_tracker: The MetricsTrackerCallback object that stores the tracked data.
@@ -121,6 +121,7 @@ def objective(trial):
         tau=tau,
         gamma=gamma,
         action_noise=noise,
+        seed=10
     )
     
     eval_env = create_env()
@@ -150,24 +151,24 @@ def main():
     Main function to run the training and evaluation of DDPG on Inverted Pendulum.
     """
 
-    best_params = optimize_ddpg()
-    print("Optimization complete!")
-    print(best_params)
+    # best_params = optimize_ddpg()
+    # print("Optimization complete!")
+    # print(best_params)
     # Create environment
-    # env = create_env()
+    env = create_env()
 
     # Train DDPG with callback
-    # # model, tracker = train_ddpg(env, total_timesteps=50000)
-    # print("Training complete!")
+    model, tracker = train_ddpg(env, total_timesteps=50000)
+    print("Training complete!")
     # file = open('episode_rewards.pkl', 'rb')
     # episode_rewards = pickle.load(file)
 
 
-    # # Plot rewards
-    # plot_rewards(metrics_tracker=None, episode_rewards=episode_rewards)
+    # Plot rewards
+    plot_rewards(metrics_tracker=tracker)
 
-    # # # Close environment
-    # env.close()
+    # Close environment
+    env.close()
 
 
 if __name__ == "__main__":
