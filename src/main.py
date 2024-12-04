@@ -151,7 +151,7 @@ def objective(trial, tracker=None):
     model = DDPG(
         "MlpPolicy", 
         env, 
-        verbose=1,
+        verbose=0,
         learning_rate=learning_rate,
         buffer_size=buffer_size,
         batch_size=batch_size,
