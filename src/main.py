@@ -10,7 +10,7 @@ import optuna
 from stable_baselines3.common.evaluation import evaluate_policy
 
 
-def create_env(env_name="Inverted-Pendulum-v5"):
+def create_env(env_name="InvertedPendulum-v5"):
     """
     Creates and returns a monitored Gym environment.
     """
