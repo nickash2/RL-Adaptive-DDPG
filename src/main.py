@@ -10,8 +10,7 @@ import optuna
 from stable_baselines3.common.evaluation import evaluate_policy
 
 
-
-def create_env(env_name="Pendulum-v1"):
+def create_env(env_name="Inverted-Pendulum-v5"):
     """
     Creates and returns a monitored Gym environment.
     """
@@ -82,9 +81,9 @@ def plot_rewards(metrics_tracker=None, window_size=10, title="Rewards over Episo
     # plt.plot(episodes, episode_rewards, label="Episode Rewards", color='b', alpha=0.6)
     plt.plot(episodes[window_size-1:], running_avg, label=f"Episode Average (Window = {window_size})", color='b', linewidth=2)
     plt.fill_between(episodes[window_size-1:], 
-                     running_avg - running_std[window_size-1:], 
-                     running_avg + running_std[window_size-1:], 
-                     color='r', alpha=0.2, label="Standard Deviation")
+                    running_avg - running_std[window_size-1:], 
+                    running_avg + running_std[window_size-1:], 
+                    color='r', alpha=0.2, label="Standard Deviation")
 
     plt.xlabel("Episode")
     plt.ylabel("Reward")
@@ -125,9 +124,10 @@ def objective(trial):
     )
     
     eval_env = create_env()
+
     metrics_callback = MetricsTrackerCallback(eval_env=eval_env, verbose=0)
     
-    model.learn(total_timesteps=20000, callback=metrics_callback)
+    model.learn(total_timesteps=50000, callback=[metrics_callback])
     
     mean_reward, _ = evaluate_policy(model, eval_env, n_eval_episodes=10, deterministic=True)
     
@@ -139,7 +139,7 @@ def optimize_ddpg():
     Optimize DDPG hyperparameters using Optuna.
     """
     study = optuna.create_study(direction='maximize', study_name='ddpg_inverted_pendulum', storage='sqlite:///ddpg_inverted_pendulum.db', load_if_exists=True)
-    study.optimize(objective, n_trials=50)
+    study.optimize(objective, n_trials=100)
     
     print("Best hyperparameters: ", study.best_params)
     return study.best_params
@@ -150,24 +150,24 @@ def main():
     Main function to run the training and evaluation of DDPG on Inverted Pendulum.
     """
 
-    # best_params = optimize_ddpg()
-    # print("Optimization complete!")
-    # print(best_params)
+    best_params = optimize_ddpg()
+    print("Optimization complete!")
+    print(best_params)
     # Create environment
-    env = create_env()
+    # env = create_env()
 
     # Train DDPG with callback
-    # model, tracker = train_ddpg(env, total_timesteps=50000)
-    print("Training complete!")
-    file = open('episode_rewards.pkl', 'rb')
-    episode_rewards = pickle.load(file)
+    # # model, tracker = train_ddpg(env, total_timesteps=50000)
+    # print("Training complete!")
+    # file = open('episode_rewards.pkl', 'rb')
+    # episode_rewards = pickle.load(file)
 
 
-    # Plot rewards
-    plot_rewards(metrics_tracker=None, episode_rewards=episode_rewards)
+    # # Plot rewards
+    # plot_rewards(metrics_tracker=None, episode_rewards=episode_rewards)
 
-    # # Close environment
-    env.close()
+    # # # Close environment
+    # env.close()
 
 
 if __name__ == "__main__":
