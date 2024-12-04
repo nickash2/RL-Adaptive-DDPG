@@ -3,23 +3,30 @@ import numpy as np
 import matplotlib.pyplot as plt
 from stable_baselines3 import DDPG
 from stable_baselines3.common.monitor import Monitor
-from src.utils.tracker_callback import MetricsTrackerCallback  # Make sure the callback is correctly imported
+# from src.utils.tracker_callback import MetricsTrackerCallback  # Make sure the callback is correctly imported
 import pickle
 from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
 import optuna
 from stable_baselines3.common.evaluation import evaluate_policy
+import pandas as pd
+from src.utils.metrictracker import MetricsTracker
+from src.utils.metricktrackercallback import MetricsTrackerCallback
 
 
-def create_env(env_name="InvertedPendulum-v5"):
+def create_env(env_name="InvertedPendulum-v5", seed=None):
     """
     Creates and returns a monitored Gym environment.
     """
     env = gym.make(env_name)
+    if seed is not None:
+        env.seed(seed)
+        env.action_space.seed(seed)
+        env.observation_space.seed(seed)
     env = Monitor(env, filename='data.csv')  # Monitor for logging rewards
     return env
 
 
-def train_ddpg(env, total_timesteps=50000, model_path="ddpg_inverted_pendulum"):
+def train_ddpg(env, tracker=None, total_timesteps=50000, model_path="ddpg_inverted_pendulum", seed=10):
     """ 
     Trains a DDPG model on the provided environment.
     :param env: The Gym environment.
@@ -28,7 +35,7 @@ def train_ddpg(env, total_timesteps=50000, model_path="ddpg_inverted_pendulum"):
     :return: Trained DDPG model.
     """
 
-    noise_std = 0.13
+    noise_std = 0.2
     noise = OrnsteinUhlenbeckActionNoise(
         mean=np.zeros(env.action_space.shape),
         sigma=noise_std * np.ones(env.action_space.shape)
@@ -37,19 +44,17 @@ def train_ddpg(env, total_timesteps=50000, model_path="ddpg_inverted_pendulum"):
         "MlpPolicy", 
         env, 
         verbose=0,
-        learning_rate=1e-3,
+        learning_rate=1e-4,
         buffer_size=int(1e6),
         batch_size=128,
         tau=0.005,
         gamma=0.99,
         action_noise=noise,
-        seed=10
+        seed=seed
     )
 
-    eval_env = create_env()
-    
     # Create the callback
-    metrics_callback = MetricsTrackerCallback(eval_env=eval_env, verbose=1)
+    metrics_callback = MetricsTrackerCallback(tracker)
 
     # Train the model with the callback
     model.learn(total_timesteps=total_timesteps, callback=metrics_callback)
@@ -57,7 +62,8 @@ def train_ddpg(env, total_timesteps=50000, model_path="ddpg_inverted_pendulum"):
     
     return model, metrics_callback
 
-def train_multiple_runs(env_name="InvertedPendulum-v5", total_timesteps=50000, num_runs=5, model_path_prefix="ddpg_run"):
+
+def train_multiple_runs(env_name="InvertedPendulum-v5", total_timesteps=50000, num_runs=5, model_path_prefix="ddpg_run", tracker=None):
     """
     Train the DDPG agent multiple times and return a list of episode rewards across runs.
     
@@ -67,65 +73,66 @@ def train_multiple_runs(env_name="InvertedPendulum-v5", total_timesteps=50000, n
     :param model_path_prefix: Prefix for saving models from each run.
     :return: List of lists containing episode rewards for each run.
     """
-    episode_rewards_list = []
+
 
     for run in range(num_runs):
         print(f"Starting run {run + 1}/{num_runs}...")
         env = create_env(env_name)
         model_path = f"{model_path_prefix}_{run}"
 
-        model, metrics_callback = train_ddpg(env, total_timesteps=total_timesteps, model_path=model_path)
+        model, metrics_callback = train_ddpg(env, total_timesteps=total_timesteps, model_path=model_path, tracker=tracker, seed=run+10)
         print(f"Run {run + 1} complete!")
-
-        # Collect rewards for this run
-        rewards = metrics_callback.get_tracked_metrics()['episode_rewards']
-        episode_rewards_list.append(rewards)
 
         # Cleanup
         env.close()
 
-    return episode_rewards_list
+    tracker.plot_metric("return", "target_return.png")
 
 
-def plot_rewards(metrics_tracker=None, window_size=10, title="Rewards over Episodes (DDPG on Inverted Pendulum)", episode_rewards_list=None):
+
+def plot_rewards(metrics_tracker=None, window_size=1, title="Rewards over Episodes (DDPG on Inverted Pendulum)", episode_rewards_list=None):
     if metrics_tracker is not None:
+        # Extract rewards from the metrics tracker if provided
         episode_rewards_list = metrics_tracker.get_tracked_metrics()['episode_rewards']
         with open('episode_rewards.pkl', 'wb') as f:
             pickle.dump(episode_rewards_list, f)
- 
-    # Convert list of episode rewards to a numpy array
-    episode_rewards_array = np.array(episode_rewards_list)
-    
-    # Calculate the mean and standard deviation across runs
-    mean_rewards = np.mean(episode_rewards_array, axis=0)
-    std_rewards = np.std(episode_rewards_array, axis=0)
-    
-    # Calculate the running average (moving average)
-    running_avg = np.convolve(mean_rewards, np.ones(window_size) / window_size, mode='valid')
-    
-    # Calculate the standard deviation for the same window size
-    running_std = [np.std(mean_rewards[i-window_size+1:i+1]) if i >= window_size-1 else 0 for i in range(len(mean_rewards))]
 
-    episodes = np.arange(1, len(mean_rewards) + 1)
+    # Ensure `episode_rewards_list` is not empty
+    if not episode_rewards_list or len(episode_rewards_list) == 0:
+        print("No rewards data to plot.")
+        return
 
+    # Extract mean and std deviation from the input list of tuples
+    mean_rewards = np.array([x[0] for x in episode_rewards_list])
+    std_rewards = np.array([x[1] for x in episode_rewards_list])
+    
+    # Calculate rolling averages using pandas
+    mean_values = pd.Series(mean_rewards).rolling(window=window_size, min_periods=1).mean()
+    std_values = pd.Series(std_rewards).rolling(window=window_size, min_periods=1).mean()
+
+    # Episodes as x-axis values
+    episodes = np.arange(len(mean_rewards))
+
+    # Plot the rolling mean and standard deviation
     plt.figure(figsize=(10, 6))
-    plt.plot(episodes[window_size-1:], running_avg, label=f"Episode Average (Window = {window_size})", color='b', linewidth=2)
-    plt.fill_between(episodes[window_size-1:], 
-                    running_avg - std_rewards[window_size-1:], 
-                    running_avg + std_rewards[window_size-1:], 
-                    color='r', alpha=0.2, label="Standard Deviation")
+    plt.plot(episodes, mean_values, label=f"Rolling Average (Window = {window_size})", color='b', linewidth=2)
+    plt.fill_between(
+        episodes,
+        mean_values - std_values,
+        mean_values + std_values,
+        color='r', alpha=0.2, label="Standard Deviation"
+    )
 
     plt.xlabel("Episode")
     plt.ylabel("Reward")
     plt.title(title)
     plt.legend()
     plt.grid()
-
     plt.savefig("rewards_smoothed.png")
 
 
 
-def objective(trial):
+def objective(trial, tracker=None):
     """
     Objective function for Optuna hyperparameter tuning.
     """
@@ -154,23 +161,21 @@ def objective(trial):
         seed=10
     )
     
-    eval_env = create_env()
-
-    metrics_callback = MetricsTrackerCallback(eval_env=eval_env, verbose=0)
+    metrics_callback = MetricsTrackerCallback(tracker)
     
     model.learn(total_timesteps=50000, callback=[metrics_callback])
     
-    mean_reward, _ = evaluate_policy(model, eval_env, n_eval_episodes=10, deterministic=True)
-    
+    mean_reward = tracker.get_avg_return()
+    print(f"Mean reward: {mean_reward}")
     return mean_reward
 
 
-def optimize_ddpg():
+def optimize_ddpg(tracker):
     """
     Optimize DDPG hyperparameters using Optuna.
     """
     study = optuna.create_study(direction='maximize', study_name='ddpg_inverted_pendulum', storage='sqlite:///ddpg_inverted_pendulum.db', load_if_exists=True)
-    study.optimize(objective, n_trials=100)
+    study.optimize(lambda trial: objective(trial, tracker), n_trials=100)
     
     print("Best hyperparameters: ", study.best_params)
     return study.best_params
@@ -180,20 +185,18 @@ def main():
     """
     Main function to run the training and evaluation of DDPG on Inverted Pendulum.
     """
-    env_name = "InvertedPendulum-v5"
-    num_runs = 3
-    total_timesteps = 100000
+    # env_name = "InvertedPendulum-v5"
+    # num_runs = 5
+    # total_timesteps = 1000
+
+    tracker = MetricsTracker()
+
+    optimize_ddpg(tracker)
 
     # Perform multiple runs
-    episode_rewards_list = train_multiple_runs(env_name=env_name, total_timesteps=total_timesteps, num_runs=num_runs)
-    print("Training complete for all runs!")
+    # train_multiple_runs(env_name=env_name, total_timesteps=total_timesteps, num_runs=num_runs, tracker=tracker)
+    # print("Training complete for all runs!")
 
-    # Save episode rewards for analysis
-    with open('episode_rewards_multiple_runs.pkl', 'wb') as f:
-        pickle.dump(episode_rewards_list, f)
-
-    # Plot rewards
-    plot_rewards(episode_rewards_list=episode_rewards_list)
 
 if __name__ == "__main__":
     main()
