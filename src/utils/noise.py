@@ -5,7 +5,7 @@ Ornstein-Uhlenbeck action noise implementation for DDPG based upon:
 https://github.com/openai/baselines/blob/master/baselines/ddpg/noise.py
 '''
 
-class OUNoise:
+class OUNoise():
     """
     Ornstein-Uhlenbeck process for generating noise, typically used in DDPG.
 
@@ -42,7 +42,7 @@ class OUNoise:
         """
         self.state = np.ones(self.action_space.shape) * self.mu
 
-    def noise(self):
+    def noise(self) -> np.ndarray:
         """
         Generate the next noise value using the Ornstein-Uhlenbeck process.
 
@@ -53,3 +53,15 @@ class OUNoise:
         dx = self.theta * (self.mu - x) * self.dt + self.sigma * np.sqrt(self.dt) * np.random.normal(size=x.shape)
         self.state = x + dx
         return self.state
+
+
+class NormalNoise:
+    def __init__(self, mu, sigma):
+        self.mu = mu
+        self.sigma = sigma
+
+    def noise(self):
+        return np.random.normal(self.mu, self.sigma)
+
+    def __repr__(self):
+        return 'NormalActionNoise(mu={}, sigma={})'.format(self.mu, self.sigma)

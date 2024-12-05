@@ -68,8 +68,8 @@ def train_multiple_runs(env_name="InvertedPendulum-v5", total_timesteps=50000, n
     Train the DDPG agent multiple times and return a list of episode rewards across runs.
     
     :param env_name: Name of the Gym environment.
-    :param total_timesteps: Number of timesteps to train for each run.
-    :param num_runs: Number of independent training runs.
+    :param total_timesteps: Number of timesteps to train for each run. 50,000 by default.
+    :param num_runs: Number of independent training runs. 5 by default.
     :param model_path_prefix: Prefix for saving models from each run.
     :return: List of lists containing episode rewards for each run.
     """
