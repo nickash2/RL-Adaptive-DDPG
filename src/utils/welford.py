@@ -1,6 +1,7 @@
 from typing import Tuple
 
 """
+Sourced from RL theoretical course material.
 Online algorithms for keeping track of sample means and sample variances.
 
 For more information, see: https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance

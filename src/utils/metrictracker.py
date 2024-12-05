@@ -6,6 +6,9 @@ from matplotlib import pyplot as plt
 from src.utils.welford import Welford
 import pandas as pd
 
+"""
+Sourced from RL theoretical course material.
+"""
 
 class MetricsTracker:
     """

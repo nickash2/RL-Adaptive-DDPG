@@ -3,7 +3,9 @@ from stable_baselines3.common.callbacks import BaseCallback
 from loguru import logger
 
 from src.utils.metrictracker import MetricsTracker
-
+"""
+Sourced from RL theoretical course material.
+"""
 
 class MetricsTrackerCallback(BaseCallback):
     """
