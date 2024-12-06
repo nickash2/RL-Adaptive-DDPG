@@ -96,7 +96,6 @@ class MetricsTracker:
 
                 mean_values = [w.get_curr_mean_variance()[0] for _, w in sorted_episodes]
                 std_values = [np.sqrt(w.get_curr_mean_variance()[1]) for _, w in sorted_episodes]
-                print(std_values)
                 # Apply a smoothing on the data with a running window average over episodes
                 window = 10
                 mean_values = pd.Series(mean_values).rolling(window=window, min_periods=1).mean()

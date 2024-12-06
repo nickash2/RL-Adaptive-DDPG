@@ -10,7 +10,7 @@ FINAL_WEIGHT_INIT = 3e-3
 FINAL_BIAS_INIT = 3e-4
 
 class Actor(nn.Module):
-    def __init__(self, hidden_size: List[int,int], num_inputs: int, action_space: Space)-> None:
+    def __init__(self, hidden_size: List[int], num_inputs: int, action_space: Space)-> None:
         """
         Initializes the Actor class.
 
@@ -92,7 +92,7 @@ class Critic(nn.Module):
                 torch.Tensor: The estimated value of the state-action pair.
     """
 
-    def __init__(self, hidden_size: List[int,int], num_inputs: int, action_space: Space) -> None:
+    def __init__(self, hidden_size: List[int], num_inputs: int, action_space: Space) -> None:
         super(Critic, self).__init__()
         self.action_space = action_space
         output_size = action_space.shape[0]

@@ -1,8 +1,9 @@
 from collections import namedtuple
-from typing import List
+from typing import List, Tuple
+import random
 
 class ReplayBuffer():
-    def __init__(self, buffer_size : int = 100000):
+    def __init__(self, buffer_size : int = 100000, seed : int = 10):
         '''
         Creates a replay buffer of finite size to store previous state-action-reward-next action tuples
 
@@ -10,10 +11,11 @@ class ReplayBuffer():
             buffer_size : int: the capacity of the replay buffer, 100,000 by default.
         '''
         self.capacity = buffer_size
-        self.entry = namedtuple('Entry', ['state', 'action', 'reward', 'next_state']) # allows calling members by name instead of index 
+        self.entry = namedtuple('Entry', ['state', 'action', 'reward', 'next_state', 'done']) # allows calling members by name instead of index 
         self.buffer : List[self.entry] = []
+        random.seed(seed)
 
-    def add_entry(self, state : List[float], action : float | list[float], reward : float, next_state : List[float]) -> None:
+    def add_entry(self, state : List[float], action : float | list[float], reward : float, next_state : List[float], done : bool) -> None:
         '''
         Adds an entry during the learning phase of the model.
 
@@ -26,7 +28,7 @@ class ReplayBuffer():
         '''
         if len(self) >= self.capacity:
             self._remove_entry()
-        self.buffer.append(self.entry(state, action, reward, next_state))
+        self.buffer.append(self.entry(state, action, reward, next_state, done))
     
     def _remove_entry(self) -> None:
         '''
@@ -45,7 +47,7 @@ class ReplayBuffer():
         '''
         return len(self.buffer)
 
-    def __getitem__(self, index: int) -> self.entry:
+    def __getitem__(self, index: int):
         '''
         Returns the member of the buffer at the given index, if present
 
@@ -68,3 +70,34 @@ class ReplayBuffer():
         Empties the buffer
         '''
         self.buffer.clear()
+    
+    def sample(self, batch_size: int) -> Tuple[List[float], List[float], List[float], List[float], List[bool]]:
+        '''
+        Samples a random batch of entries from the replay buffer.
+
+        Args:
+            batch_size : int: The number of entries to sample.
+
+        Raises:
+            ValueError: If the requested batch size is greater than the number of entries in the buffer.
+
+        Returns:
+            Tuple[List[float], List[float], List[float], List[float], List[bool]]:
+                - states: List of sampled states
+                - actions: List of sampled actions
+                - rewards: List of sampled rewards
+                - next_states: List of sampled next states
+                - dones: List of sampled done flags
+        '''
+        if batch_size > len(self):
+            raise ValueError("Cannot sample more entries than are present in the buffer.")
+        
+        sampled_entries = random.sample(self.buffer, batch_size)
+
+        states = [entry.state for entry in sampled_entries]
+        actions = [entry.action for entry in sampled_entries]
+        rewards = [entry.reward for entry in sampled_entries]
+        next_states = [entry.next_state for entry in sampled_entries]
+        dones = [entry.done for entry in sampled_entries]
+
+        return states, actions, rewards, next_states, dones

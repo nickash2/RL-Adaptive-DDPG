@@ -1,11 +1,25 @@
 import numpy as np
+from abc import ABC, abstractmethod
 
 '''
 Ornstein-Uhlenbeck action noise implementation for DDPG based upon:
 https://github.com/openai/baselines/blob/master/baselines/ddpg/noise.py
 '''
 
-class OUNoise():
+class AbstractNoise(ABC):
+
+    def __init__(self):
+        pass
+
+    @abstractmethod
+    def noise(self):
+        raise NotImplementedError
+
+    def reset(self):
+        raise NotImplementedError
+
+
+class OUNoise(AbstractNoise):
     """
     Ornstein-Uhlenbeck process for generating noise, typically used in DDPG.
 
@@ -55,13 +69,45 @@ class OUNoise():
         return self.state
 
 
-class NormalNoise:
-    def __init__(self, mu, sigma):
+class NormalNoise(AbstractNoise):
+    def __init__(self, mu=0, sigma=0.2, action_space=None, shape=None):
+        """
+        Normal Gaussian noise generator.
+
+        Args:
+            mu (float): Mean of the normal distribution.
+            sigma (float): Standard deviation of the normal distribution.
+            action_space (gym.Space, optional): Action space to determine noise shape.
+            shape (tuple, optional): Explicit shape for the noise.
+        """
         self.mu = mu
         self.sigma = sigma
 
-    def noise(self):
-        return np.random.normal(self.mu, self.sigma)
+        # Determine the shape of the noise
+        if action_space is not None:
+            self.shape = action_space.shape
+        elif shape is not None:
+            self.shape = shape
+        else:
+            raise ValueError("You must provide either an action_space or a shape for NormalNoise.")
 
-    def __repr__(self):
-        return 'NormalActionNoise(mu={}, sigma={})'.format(self.mu, self.sigma)
+        self.reset()
+
+    def noise(self):
+        """
+        Generate noise.
+
+        Returns:
+            np.ndarray: Gaussian noise with the specified shape.
+        """
+        return np.random.normal(self.mu, self.sigma, size=self.shape)
+
+    def reset(self):
+        """
+        Reset the state of the noise process.
+
+        Returns:
+            None: Keeps consistency with OUNoise reset.
+        """
+        # NormalNoise has no state to reset, but this adheres to the interface.
+        self.state = np.zeros(self.shape)  # Consistency with OUNoise
