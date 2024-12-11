@@ -90,47 +90,6 @@ def train_multiple_runs(env_name="InvertedPendulum-v5", total_timesteps=50000, n
 
 
 
-def plot_rewards(metrics_tracker=None, window_size=1, title="Rewards over Episodes (DDPG on Inverted Pendulum)", episode_rewards_list=None):
-    if metrics_tracker is not None:
-        # Extract rewards from the metrics tracker if provided
-        episode_rewards_list = metrics_tracker.get_tracked_metrics()['episode_rewards']
-        with open('episode_rewards.pkl', 'wb') as f:
-            pickle.dump(episode_rewards_list, f)
-
-    # Ensure `episode_rewards_list` is not empty
-    if not episode_rewards_list or len(episode_rewards_list) == 0:
-        print("No rewards data to plot.")
-        return
-
-    # Extract mean and std deviation from the input list of tuples
-    mean_rewards = np.array([x[0] for x in episode_rewards_list])
-    std_rewards = np.array([x[1] for x in episode_rewards_list])
-    
-    # Calculate rolling averages using pandas
-    mean_values = pd.Series(mean_rewards).rolling(window=window_size, min_periods=1).mean()
-    std_values = pd.Series(std_rewards).rolling(window=window_size, min_periods=1).mean()
-
-    # Episodes as x-axis values
-    episodes = np.arange(len(mean_rewards))
-
-    # Plot the rolling mean and standard deviation
-    plt.figure(figsize=(10, 6))
-    plt.plot(episodes, mean_values, label=f"Rolling Average (Window = {window_size})", color='b', linewidth=2)
-    plt.fill_between(
-        episodes,
-        mean_values - std_values,
-        mean_values + std_values,
-        color='r', alpha=0.2, label="Standard Deviation"
-    )
-
-    plt.xlabel("Episode")
-    plt.ylabel("Reward")
-    plt.title(title)
-    plt.legend()
-    plt.grid()
-    plt.savefig("rewards_smoothed.png")
-
-
 
 def objective(trial, tracker=None):
     """

@@ -6,6 +6,10 @@ import torch
 from src.utils.replay_buffer import ReplayBuffer
 from src.utils.metrictracker import MetricsTracker
 import numpy as np
+from src.utils.noise import AbstractNoise
+from typing import Tuple
+import random
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 WEIGHTS_FINAL_INIT = 3e-3
@@ -22,11 +26,20 @@ class DDPG:
                  actor_lr: float,
                  buffer_size: int,
                  callback: List[MetricsTracker] = None,
-                 seed: int = 10,
-                 log_dir: str = "./runs/DDPG"):
-        np.random.seed(seed)
-        torch.manual_seed(seed)
+                 seed: int | None = None,
+                 log_dir: str = "./runs/DDPG",
+                 update_interval: Tuple[int, str] = (1, "step"),
+                 learning_starts: int = 1000,
+                 batch_size: int = 256
+                 ):
+        # Set random seed if seed is NoneType
+        self.seed = np.random.randint(0, 2**32 - 1) if seed is None else seed
+
+        # Set seed for reproducibility
+        np.random.seed(self.seed)
+        torch.manual_seed(self.seed)
         
+        self.batch_size = batch_size
         self.discount_factor = discount_factor
         self.action_space = action_space
         self.tau = tau
@@ -57,7 +70,10 @@ class DDPG:
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=actor_lr)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=critic_lr)
 
-    def train(self, env, num_episodes: int, batch_size: int, noise=None, max_steps: int = 1000):
+        self.update_interval = update_interval
+        self.learning_starts = learning_starts
+
+    def train(self, env, num_episodes: int, noise: AbstractNoise = None, max_steps: int = 1000):
         episode_rewards = []
         if self.callback:
             for cb in self.callback:
@@ -67,6 +83,7 @@ class DDPG:
             state, _ = env.reset()
             episode_reward = 0
             noise.reset() if noise else None  # Reset noise for each episode
+            critic_loss, actor_loss = None, None
 
             for step in range(max_steps):
                 state_tensor = torch.FloatTensor(state).to(device)
@@ -88,12 +105,19 @@ class DDPG:
                             print("Training interrupted by callback.")
                             return episode_rewards
 
+                # Step-based update interval (update every N steps)
+                if self.update_interval[1] == "step" and step % self.update_interval[0] == 0:
+                    if len(self.replay_buffer) >= self.learning_starts:
+                        critic_loss, actor_loss = self.update(self.batch_size)
+
                 # Check if episode is done (either from environment or max_steps)
                 if done:
                     break
 
-                # Update the networks
-                critic_loss, actor_loss = self.update(batch_size)
+            # Episode-based update interval (update every N episodes)
+            if self.update_interval[1] == "episode" and episode % self.update_interval[0] == 0:
+                if len(self.replay_buffer) >= self.learning_starts:
+                    critic_loss, actor_loss = self.update(self.batch_size)
 
             # Log metrics to TensorBoard
             self.writer.add_scalar("Reward/Episode", episode_reward, episode)
@@ -109,6 +133,7 @@ class DDPG:
 
         self.writer.close()  # Close the TensorBoard writer
         return episode_rewards
+
 
     def select_action(self, state: torch.FloatTensor, noise=None):
         x = state.to(device)
