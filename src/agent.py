@@ -1,3 +1,4 @@
+from torch.utils.tensorboard import SummaryWriter
 from src.utils.models import Actor, Critic
 from gymnasium.spaces import Space
 from typing import List
@@ -7,22 +8,22 @@ from src.utils.metrictracker import MetricsTracker
 import numpy as np
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+WEIGHTS_FINAL_INIT = 3e-3
+BIAS_FINAL_INIT = 3e-4
 
-
-class DDPG():
+class DDPG:
     def __init__(self, 
-                discount_factor: float, 
-                action_space: Space, 
-                hidden_size: List[int], 
-                input_size: int, 
-                tau: float,
-                critic_lr: float,
-                actor_lr: float,
-                buffer_size: int,
-                callback: List[MetricsTracker] = None,
-                seed: int = 10
-            ):
-
+                 discount_factor: float, 
+                 action_space: Space, 
+                 hidden_size: List[int], 
+                 input_size: int, 
+                 tau: float,
+                 critic_lr: float,
+                 actor_lr: float,
+                 buffer_size: int,
+                 callback: List[MetricsTracker] = None,
+                 seed: int = 10,
+                 log_dir: str = "./runs/DDPG"):
         np.random.seed(seed)
         torch.manual_seed(seed)
         
@@ -30,6 +31,7 @@ class DDPG():
         self.action_space = action_space
         self.tau = tau
         self.callback = callback
+        self.writer = SummaryWriter(log_dir=log_dir)  # Initialize TensorBoard writer
 
         self.actor = Actor(hidden_size, input_size, action_space)
         self.target_actor = Actor(hidden_size, input_size, action_space)
@@ -52,10 +54,8 @@ class DDPG():
         self.replay_buffer = ReplayBuffer(buffer_size=buffer_size)
 
         # Initialize the optimizers for the actor and critic networks
-
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=actor_lr)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=critic_lr)
-
 
     def train(self, env, num_episodes: int, batch_size: int, noise=None, max_steps: int = 1000):
         episode_rewards = []
@@ -93,21 +93,24 @@ class DDPG():
                     break
 
                 # Update the networks
-                self.update(batch_size)
+                critic_loss, actor_loss = self.update(batch_size)
+
+            # Log metrics to TensorBoard
+            self.writer.add_scalar("Reward/Episode", episode_reward, episode)
+            if critic_loss is not None and actor_loss is not None:
+                self.writer.add_scalar("Loss/Critic", critic_loss, episode)
+                self.writer.add_scalar("Loss/Actor", actor_loss, episode)
 
             episode_rewards.append(episode_reward)
-            cb = self.callback[0]
-            cb.episode_reward = episode_reward  # Set the callback's episode reward
-            cb.episode_idx = episode  # Set the callback's episode index
 
         if self.callback:
             for cb in self.callback:
                 cb._on_training_end()  # Notify callbacks that training is ending
 
+        self.writer.close()  # Close the TensorBoard writer
         return episode_rewards
 
-
-    def select_action(self, state: torch.FloatTensor, noise = None):
+    def select_action(self, state: torch.FloatTensor, noise=None):
         x = state.to(device)
 
         self.actor.eval()  # Sets the actor in evaluation mode
@@ -117,12 +120,11 @@ class DDPG():
         mu = mu.data
 
         if noise is not None:
-            noise = torch.Tensor(noise.noise()).to(device)  # assuming noise object has func noise() that returns noise
+            noise = torch.Tensor(noise.noise()).to(device)  # Assuming noise object has a noise() function
             mu += noise
 
         # Clip the output according to the action space
         return mu.clamp(self.action_space.low[0], self.action_space.high[0])
-
 
     def soft_update(self, target, source, tau):
         """
@@ -131,10 +133,9 @@ class DDPG():
         for target_param, source_param in zip(target.parameters(), source.parameters()):
             target_param.data.copy_(tau * source_param.data + (1.0 - tau) * target_param.data)
 
-
     def update(self, batch_size: int):
         if len(self.replay_buffer) < batch_size:
-            return  # Skip update if there's not enough data
+            return None, None  # Skip update if there's not enough data
 
         # Sample a batch of transitions
         states, actions, rewards, next_states, dones = self.replay_buffer.sample(batch_size)
@@ -170,3 +171,4 @@ class DDPG():
         self.soft_update(self.target_actor, self.actor, self.tau)
         self.soft_update(self.target_critic, self.critic, self.tau)
 
+        return critic_loss.item(), actor_loss.item()
