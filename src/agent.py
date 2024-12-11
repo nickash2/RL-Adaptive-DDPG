@@ -79,7 +79,7 @@ class DDPG:
                 cb._on_training_start()  # Notify callbacks that training is starting
 
         for episode in range(num_episodes):
-            state, _ = env.reset()
+            state, _ = env.reset()  # Reset the environment at the start of each episode
             episode_reward = 0
             noise.reset() if noise else None  # Reset noise for each episode
             critic_loss, actor_loss = None, None
@@ -108,9 +108,9 @@ class DDPG:
                 if self.update_interval[1] == "step" and step % self.update_interval[0] == 0:
                     if len(self.replay_buffer) >= self.learning_starts:
                         critic_loss, actor_loss = self.update(self.batch_size)
-
-                # Check if episode is done (either from environment or max_steps)
-                if done:
+                # Reset the environment after episode ends
+                if done or truncated:
+                    state, _ = env.reset()
                     break
 
             # Episode-based update interval (update every N episodes)
@@ -132,6 +132,7 @@ class DDPG:
 
         self.writer.close()  # Close the TensorBoard writer
         return episode_rewards
+
 
 
     def select_action(self, state: torch.FloatTensor, noise=None):
