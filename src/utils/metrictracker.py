@@ -170,3 +170,12 @@ class MetricsTracker:
             
             # Return the average return
             return total_return / count if count > 0 else 0.0
+
+    def save_metrics(self, file_name: str) -> None:
+        """
+        Save the recorded metrics to a file.
+
+        :param file_name: The file to save the metrics to.
+        """
+        with self._lock:
+            return pd.DataFrame(self._metrics_history).to_csv(file_name, index=False)

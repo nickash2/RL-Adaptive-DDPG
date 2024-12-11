@@ -89,20 +89,11 @@ class DDPG:
                 action = self.select_action(state_tensor, noise=noise).cpu().numpy()
 
                 next_state, reward, done, truncated, _ = env.step(action)
-                reward_clip = (-1, 1)
-                reward = np.clip(reward, reward_clip[0], reward_clip[1])
-                self.replay_buffer.add_entry(state, action, reward, next_state, done)
 
+                self.replay_buffer.add_entry(state, action, reward, next_state, done)
+                # Clip episode reward from 0 to 1000
                 episode_reward += reward
                 state = next_state
-
-                # Notify callbacks about step progress
-                if self.callback:
-                    for cb in self.callback:
-                        cb.locals = {"rewards": reward, "dones": done}  # Set required callback locals
-                        if not cb._on_step():  # If a callback returns False, stop training early
-                            print("Training interrupted by callback.")
-                            return episode_rewards
 
                 # Step-based update interval (update every N steps)
                 if self.update_interval[1] == "step" and step % self.update_interval[0] == 0:
@@ -117,6 +108,14 @@ class DDPG:
             if self.update_interval[1] == "episode" and episode % self.update_interval[0] == 0:
                 if len(self.replay_buffer) >= self.learning_starts:
                     critic_loss, actor_loss = self.update(self.batch_size)
+
+            # Notify callbacks about step progress
+            if self.callback:
+                for cb in self.callback:
+                    cb.locals = {"rewards": episode_reward, "dones": done}  # Set required callback locals
+                    if not cb._on_step():  # If a callback returns False, stop training early
+                        print("Training interrupted by callback.")
+                        return episode_rewards
 
             # Log metrics to TensorBoard
             self.writer.add_scalar("Reward/Episode", episode_reward, episode)
@@ -197,3 +196,45 @@ class DDPG:
         self.soft_update(self.target_critic, self.critic, self.tau)
 
         return critic_loss.item(), actor_loss.item()
+
+
+class AdaptiveDDPG(DDPG):
+    def __init__(self, 
+                 discount_factor: float, 
+                 action_space: Space, 
+                 hidden_size: List[int], 
+                 input_size: int, 
+                 tau: float,
+                 critic_lr: float,
+                 actor_lr: float,
+                 buffer_size: int,
+                 callback: List[MetricsTracker] = None,
+                 seed: int | None = None,
+                 log_dir: str = "./runs/DDPG",
+                 update_interval: Tuple[int, str] = (1, "step"),
+                 learning_starts: int = 1000,
+                 batch_size: int = 256,
+                 noise: AbstractNoise = None
+                 ):
+        super().__init__(discount_factor, 
+                        action_space, 
+                        hidden_size, 
+                        input_size, 
+                        tau, 
+                        critic_lr, 
+                        actor_lr, 
+                        buffer_size, 
+                        callback, 
+                        seed, 
+                        log_dir, 
+                        update_interval, 
+                        learning_starts, 
+                        batch_size,
+                        noise,
+        )
+
+    def update(self, batch_size: int):
+        return NotImplementedError("Update in adaptive not implemented")
+
+    def soft_update(self, target, source, tau):
+        return NotImplementedError("Tau update in adaptive not implemented")
