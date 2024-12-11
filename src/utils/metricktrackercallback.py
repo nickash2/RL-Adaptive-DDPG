@@ -47,9 +47,10 @@ class MetricsTrackerCallback(BaseCallback):
         """
         reward = self.locals['rewards']
         dones = self.locals['dones']
+        truncated = self.locals['truncated']
         self.episode_reward += reward.item() if isinstance(reward, np.ndarray) else reward
 
-        if np.any(dones):
+        if np.any(dones) or np.any(truncated):
             self._on_episode_end()
 
         return True

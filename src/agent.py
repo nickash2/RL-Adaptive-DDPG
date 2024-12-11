@@ -91,15 +91,25 @@ class DDPG:
                 next_state, reward, done, truncated, _ = env.step(action)
 
                 self.replay_buffer.add_entry(state, action, reward, next_state, done)
-                # Clip episode reward from 0 to 1000
+
                 episode_reward += reward
                 state = next_state
-
                 # Step-based update interval (update every N steps)
                 if self.update_interval[1] == "step" and step % self.update_interval[0] == 0:
                     if len(self.replay_buffer) >= self.learning_starts:
                         critic_loss, actor_loss = self.update(self.batch_size)
-                # Reset the environment after episode ends
+
+                # Notify callbacks about step progress
+                if self.callback:
+                    for cb in self.callback:
+                        cb.locals = {"rewards": reward, "dones": done, "truncated": truncated}  # Set required callback locals
+                        if not cb._on_step():  # If a callback returns False, stop training early
+                            print("Training interrupted by callback.")
+                            return episode_rewards
+                
+                # print(f"Step reward: {reward}, Episode reward: {episode_reward}")
+
+
                 if done or truncated:
                     state, _ = env.reset()
                     break
@@ -109,21 +119,14 @@ class DDPG:
                 if len(self.replay_buffer) >= self.learning_starts:
                     critic_loss, actor_loss = self.update(self.batch_size)
 
-            # Notify callbacks about step progress
-            if self.callback:
-                for cb in self.callback:
-                    cb.locals = {"rewards": episode_reward, "dones": done}  # Set required callback locals
-                    if not cb._on_step():  # If a callback returns False, stop training early
-                        print("Training interrupted by callback.")
-                        return episode_rewards
-
-            # Log metrics to TensorBoard
             self.writer.add_scalar("Reward/Episode", episode_reward, episode)
             if critic_loss is not None and actor_loss is not None:
                 self.writer.add_scalar("Loss/Critic", critic_loss, episode)
                 self.writer.add_scalar("Loss/Actor", actor_loss, episode)
 
             episode_rewards.append(episode_reward)
+            # if there is convergence
+
 
         if self.callback:
             for cb in self.callback:

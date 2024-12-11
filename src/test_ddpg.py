@@ -34,16 +34,15 @@ def main():
                         log_dir=f"./runs/DDPG_{run}"
                         )
             print(f"Starting run {run + 1}/{num_runs}...")
-            model.train(env, num_episodes=100000, noise=noise, max_steps=100000)
+            model.train(env, num_episodes=100000, noise=noise, max_steps=1000)  # Max possible steps in inverted pendulum is 1000
             print(f"Run {run + 1} complete!")
-            # Cleanup
             env.close()
     except KeyboardInterrupt:
         print("Training interrupted by user")
         tracker.plot_metric("return", "return_test.png")
     finally:
         tracker.plot_metric("return", "return_test.png")
-        tracker.save("metrics_test.csv")
+        tracker.save_metrics(metric_name="return", file_name="metrics_test.csv")
 
 if __name__ == "__main__":
     main()
