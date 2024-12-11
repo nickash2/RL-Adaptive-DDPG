@@ -8,7 +8,6 @@ from src.utils.metrictracker import MetricsTracker
 import numpy as np
 from src.utils.noise import AbstractNoise
 from typing import Tuple
-import random
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
