@@ -71,9 +71,9 @@ class DDPG:
 
         self.update_interval = update_interval
         self.learning_starts = learning_starts
+        self.episode_rewards = []
 
     def train(self, env, num_episodes: int, noise: AbstractNoise = None, max_steps: int = 1000):
-        episode_rewards = []
         if self.callback:
             for cb in self.callback:
                 cb._on_training_start()  # Notify callbacks that training is starting
@@ -105,10 +105,8 @@ class DDPG:
                         cb.locals = {"rewards": reward, "dones": done, "truncated": truncated}  # Set required callback locals
                         if not cb._on_step():  # If a callback returns False, stop training early
                             print("Training interrupted by callback.")
-                            return episode_rewards
+                            return self.episode_rewards
                 
-                # print(f"Step reward: {reward}, Episode reward: {episode_reward}")
-
 
                 if done or truncated:
                     state, _ = env.reset()
@@ -124,7 +122,7 @@ class DDPG:
                 self.writer.add_scalar("Loss/Critic", critic_loss, episode)
                 self.writer.add_scalar("Loss/Actor", actor_loss, episode)
 
-            episode_rewards.append(episode_reward)
+            self.episode_rewards.append(episode_reward)
             # if there is convergence
 
 
@@ -133,7 +131,8 @@ class DDPG:
                 cb._on_training_end()  # Notify callbacks that training is ending
 
         self.writer.close()  # Close the TensorBoard writer
-        return episode_rewards
+
+        return self.episode_rewards
 
 
 
@@ -200,44 +199,3 @@ class DDPG:
 
         return critic_loss.item(), actor_loss.item()
 
-
-class AdaptiveDDPG(DDPG):
-    def __init__(self, 
-                 discount_factor: float, 
-                 action_space: Space, 
-                 hidden_size: List[int], 
-                 input_size: int, 
-                 tau: float,
-                 critic_lr: float,
-                 actor_lr: float,
-                 buffer_size: int,
-                 callback: List[MetricsTracker] = None,
-                 seed: int | None = None,
-                 log_dir: str = "./runs/DDPG",
-                 update_interval: Tuple[int, str] = (1, "step"),
-                 learning_starts: int = 1000,
-                 batch_size: int = 256,
-                 noise: AbstractNoise = None
-                 ):
-        super().__init__(discount_factor, 
-                        action_space, 
-                        hidden_size, 
-                        input_size, 
-                        tau, 
-                        critic_lr, 
-                        actor_lr, 
-                        buffer_size, 
-                        callback, 
-                        seed, 
-                        log_dir, 
-                        update_interval, 
-                        learning_starts, 
-                        batch_size,
-                        noise,
-        )
-
-    def update(self, batch_size: int):
-        return NotImplementedError("Update in adaptive not implemented")
-
-    def soft_update(self, target, source, tau):
-        return NotImplementedError("Tau update in adaptive not implemented")
