@@ -27,16 +27,23 @@ class AdaptiveDDPG(DDPG):
         # alpha * R_avg + beta * var(Q)
         average_reward = np.mean(self.episode_rewards)
         print("varq")
-        var_Q = torch.var(self.critic.value, dim=None, unbiased=True, keepdim=False).item()
-        print("after varq")
-        new_performace_metric = self.alpha * average_reward + self.beta * var_Q
         
-        if new_performace_metric > self.p_max:
-                self.p_max = new_performace_metric
-        elif new_performace_metric < self.p_min:
-                self.p_min = new_performace_metric
-    
-        self.performance_metric = new_performace_metric
+        # Ensure self.critic.value is a tensor
+        if self.critic.critic_value is not None:
+            # Move to CPU and convert to NumPy
+            critic_values = self.critic.critic_value
+            var_Q = np.var(critic_values)
+            new_performance_metric = self.alpha * average_reward + self.beta * var_Q
+            
+            if new_performance_metric > self.p_max:
+                self.p_max = new_performance_metric
+            elif new_performance_metric < self.p_min:
+                self.p_min = new_performance_metric
+            
+            self.performance_metric = new_performance_metric
+        else:
+            print("Warning: self.critic.value is None")
+
     
     def update_tau(self) -> float:
         # tau = tau_min + (tau_max - tau_min) * sin^2 (pi * (P - P_min) \ (P_max - P_min)

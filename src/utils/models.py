@@ -105,6 +105,7 @@ class Critic(nn.Module):
 
         self.value = nn.Linear(hidden_size[1], 1)  # Output a single value
         self.initialize_weights()
+        self.critic_value = None
 
     def initialize_weights(self) -> None:
         """Initialize weights for the neural network layers using fan-in uniform initialization."""
@@ -148,4 +149,8 @@ class Critic(nn.Module):
         x = self.ln2(x)
         x = F.relu(x)
 
-        return self.value(x)  # Output value
+        # Output value
+        x = self.value(x)
+        self.critic_value = x.detach().cpu().numpy()
+
+        return x
