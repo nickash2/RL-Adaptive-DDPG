@@ -13,7 +13,7 @@ from src.utils.metrictracker import MetricsTracker
 from src.utils.metricktrackercallback import MetricsTrackerCallback
 
 
-def create_env(env_name="InvertedPendulum-v5", seed=None):
+def create_env(env_name="Reacher-v5", seed=None):
     """
     Creates and returns a monitored Gym environment.
     """
@@ -35,7 +35,7 @@ def train_ddpg(env, tracker=None, total_timesteps=50000, model_path="ddpg_invert
     :return: Trained DDPG model.
     """
 
-    noise_std = 0.2
+    noise_std = 0.1
     noise = OrnsteinUhlenbeckActionNoise(
         mean=np.zeros(env.action_space.shape),
         sigma=noise_std * np.ones(env.action_space.shape)
@@ -46,11 +46,13 @@ def train_ddpg(env, tracker=None, total_timesteps=50000, model_path="ddpg_invert
         verbose=0,
         learning_rate=1e-4,
         buffer_size=int(1e6),
-        batch_size=128,
+        batch_size=64,
         tau=0.005,
         gamma=0.99,
         action_noise=noise,
-        seed=seed
+        seed=seed,
+        policy_kwargs=dict(net_arch=[400,300]),
+        learning_starts=1000
     )
 
     # Create the callback
@@ -63,7 +65,7 @@ def train_ddpg(env, tracker=None, total_timesteps=50000, model_path="ddpg_invert
     return model, metrics_callback
 
 
-def train_multiple_runs(env_name="InvertedPendulum-v5", total_timesteps=50000, num_runs=5, model_path_prefix="ddpg_run", tracker=None):
+def train_multiple_runs(env_name="Reacher-v5", total_timesteps=50000, num_runs=5, model_path_prefix="ddpg_run", tracker=None):
     """
     Train the DDPG agent multiple times and return a list of episode rewards across runs.
     
@@ -144,7 +146,7 @@ def main():
     """
     Main function to run the training and evaluation of DDPG on Inverted Pendulum.
     """
-    # env_name = "InvertedPendulum-v5"
+    # env_name = "Reacher-v5"
     # num_runs = 5
     # total_timesteps = 1000
 

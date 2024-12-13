@@ -1,15 +1,6 @@
-from agent import DDPG
-from torch.utils.tensorboard import SummaryWriter
-from src.utils.models import Actor, Critic
-from gymnasium.spaces import Space
-from typing import List
+from src.agent import DDPG
 import torch
-from src.utils.replay_buffer import ReplayBuffer
-from src.utils.metrictracker import MetricsTracker
 import numpy as np
-from src.utils.noise import AbstractNoise
-from typing import Tuple
-
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -20,6 +11,8 @@ class AdaptiveDDPG(DDPG):
                 tau_min,
                 tau_max,
                 performance_metric = 0,
+                *args,
+                **kwargs
                 ) -> None:
         super().__init__(*args, **kwargs)
         self.alpha = alpha
@@ -30,17 +23,12 @@ class AdaptiveDDPG(DDPG):
         self.p_min = 1
         self.p_max = 0
 
-    def train(self, env, num_episodes: int, noise: AbstractNoise = None, max_steps: int = 1000):
-        super().train(env, num_episodes, noise, max_steps)
-
-    def select_action(self, state: torch.FloatTensor, noise=None):
-        super().select_action(state, noise=None)
-
     def compute_performance_metric(self) -> None:
         # alpha * R_avg + beta * var(Q)
         average_reward = np.mean(self.episode_rewards)
-
+        print("varq")
         var_Q = torch.var(self.critic.value, dim=None, unbiased=True, keepdim=False).item()
+        print("after varq")
         new_performace_metric = self.alpha * average_reward + self.beta * var_Q
         
         if new_performace_metric > self.p_max:
@@ -50,7 +38,6 @@ class AdaptiveDDPG(DDPG):
     
         self.performance_metric = new_performace_metric
     
-
     def update_tau(self) -> float:
         # tau = tau_min + (tau_max - tau_min) * sin^2 (pi * (P - P_min) \ (P_max - P_min)
         P = np.clip(self.performance_metric, self.p_min, self.p_max)
