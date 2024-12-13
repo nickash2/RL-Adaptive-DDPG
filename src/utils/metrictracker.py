@@ -5,6 +5,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from src.utils.welford import Welford
 import pandas as pd
+import pickle
 
 """
 Sourced from RL theoretical course material.
@@ -177,5 +178,5 @@ class MetricsTracker:
 
         :param file_name: The file to save the metrics to.
         """
-        with self._lock:
-            return pd.DataFrame(self._metrics_history[metric_name].items()).to_csv(file_name, index=False)
+        with open(file_name, "wb") as f:
+            pickle.dump(self.metrics_history[metric_name], f)

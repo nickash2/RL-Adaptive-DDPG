@@ -8,6 +8,7 @@ from src.utils.metrictracker import MetricsTracker
 import numpy as np
 from src.utils.noise import AbstractNoise
 from typing import Tuple
+from tqdm import trange
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -29,7 +30,8 @@ class DDPG:
                  log_dir: str = "./runs/DDPG",
                  update_interval: Tuple[int, str] = (1, "step"),
                  learning_starts: int = 1000,
-                 batch_size: int = 256
+                 batch_size: int = 256,
+                 verbose: bool = False,
                  ):
         # Set random seed if seed is NoneType
         self.seed = np.random.randint(0, 2**32 - 1) if seed is None else seed
@@ -37,7 +39,8 @@ class DDPG:
         # Set seed for reproducibility
         np.random.seed(self.seed)
         torch.manual_seed(self.seed)
-        
+
+        self.verbose = verbose
         self.batch_size = batch_size
         self.discount_factor = discount_factor
         self.action_space = action_space
@@ -78,7 +81,9 @@ class DDPG:
             for cb in self.callback:
                 cb._on_training_start()  # Notify callbacks that training is starting
 
-        for episode in range(num_episodes):
+        episode_range = trange(num_episodes, desc="Training Progress", unit="episode") if self.verbose else range(num_episodes)
+
+        for episode in episode_range:
             state, _ = env.reset()  # Reset the environment at the start of each episode
             episode_reward = 0
             noise.reset() if noise else None  # Reset noise for each episode
@@ -106,7 +111,6 @@ class DDPG:
                         if not cb._on_step():  # If a callback returns False, stop training early
                             print("Training interrupted by callback.")
                             return self.episode_rewards
-                
 
                 if done or truncated:
                     state, _ = env.reset()
@@ -123,8 +127,6 @@ class DDPG:
                 self.writer.add_scalar("Loss/Actor", actor_loss, episode)
 
             self.episode_rewards.append(episode_reward)
-            # if there is convergence
-
 
         if self.callback:
             for cb in self.callback:

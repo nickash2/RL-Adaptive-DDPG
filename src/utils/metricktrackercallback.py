@@ -63,7 +63,8 @@ class MetricsTrackerCallback(BaseCallback):
         """
         Record the episode's return and check if the agent achieved a new highest average return.
         """
-        logger.info(f"Episode {self.episode_idx} finished, {self.episode_reward}")
+        if self.verbose:
+            logger.info(f"Episode {self.episode_idx} finished, {self.episode_reward}")
         # Record the return for the policy
         self.tracker.record_metric("return", agent_id=self.agent_id, episode_idx=self.episode_idx,
                                    value=self.episode_reward)
