@@ -8,4 +8,5 @@ tensorboard==2.18.0
 stable-baselines3==2.4.0
 rl-zoo3
 loguru
-wandb
+seaborn
+tqdm
