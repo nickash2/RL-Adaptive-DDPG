@@ -5,10 +5,11 @@ from src.utils.metrictracker import MetricsTracker
 from src.utils.metricktrackercallback import MetricsTrackerCallback
 from src.main import create_env
 
-def test_ddpg(model_class, *args, **kwargs):
+def test_ddpg(model_class, tracker, *args, **kwargs):
+    filtered_kwargs = {k: v for k, v in kwargs.items() if k != 'agent_str'}
     num_runs = 5
-    tracker = MetricsTracker()
-    metrics_callback = MetricsTrackerCallback(tracker, verbose=1)
+    
+    metrics_callback = MetricsTrackerCallback(tracker, verbose=1, agent_id=kwargs.get('agent_str', 'DDPG'))
     try:
         for run in range(num_runs):
             env = create_env()
@@ -30,7 +31,7 @@ def test_ddpg(model_class, *args, **kwargs):
                                 update_interval=(1, "step"),
                                 learning_starts=25000,
                                 log_dir=f"./runs/DDPG_{run}_reacher",
-                                *args, **kwargs)
+                                *args, **filtered_kwargs)
             print(f"Starting run {run + 1}/{num_runs}...")
             model.train(env, num_episodes=3000, noise=noise, max_steps=1000)  # Max possible steps in inverted pendulum is 1000
             print(f"Run {run + 1} complete!")
@@ -45,6 +46,8 @@ def test_ddpg(model_class, *args, **kwargs):
 def main():
     vanilla_model = DDPG
     modified_model = AdaptiveDDPG
+    tracker = MetricsTracker()
+
     models = [
         (modified_model, {'alpha': 0.5, 'beta': 0.5, 'tau_min': 0.005, 'tau_max': 0.05, 'agent_str': "AdaptiveDDPG"}),
         (vanilla_model, {'agent_str': "DDPG"}),
@@ -52,7 +55,7 @@ def main():
     ]
     try:
         for model, kwargs in models:
-            test_ddpg(model, **kwargs)
+            test_ddpg(model, tracker, **kwargs)
     except Exception as e:
         print(e)
 
