@@ -11,10 +11,16 @@ source .env/bin/activate
 python3.10 -m pip install -r requirements.txt
 ```
 
-
+For stable baselines:
 ```bash
 python3.10 -m src.main
 ```
+
+For comparing our implementation with our modification
+```bash
+python3.10 -m src.test_ddpg
+```
+
 
 ## Code
 
