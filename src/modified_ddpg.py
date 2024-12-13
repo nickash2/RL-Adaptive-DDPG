@@ -26,8 +26,6 @@ class AdaptiveDDPG(DDPG):
     def compute_performance_metric(self) -> None:
         # alpha * R_avg + beta * var(Q)
         average_reward = np.mean(self.episode_rewards)
-        print("varq")
-        
         # Ensure self.critic.value is a tensor
         if self.critic.critic_value is not None:
             # Move to CPU and convert to NumPy
