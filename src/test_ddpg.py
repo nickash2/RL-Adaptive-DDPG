@@ -30,7 +30,7 @@ def test_ddpg(model_class, tracker, *args, **kwargs):
                                 callback=[metrics_callback],
                                 update_interval=(1, "step"),
                                 learning_starts=25000,
-                                log_dir=f"./runs/DDPG_{run}_reacher",
+                                log_dir=f"./runs/{kwargs.get('agent_str', 'DDPG')}_run_{run}",
                                 *args, **filtered_kwargs)
             print(f"Starting run {run + 1}/{num_runs}...")
             model.train(env, num_episodes=3000, noise=noise, max_steps=1000)  # Max possible steps in inverted pendulum is 1000
