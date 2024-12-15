@@ -10,3 +10,5 @@ rl-zoo3
 loguru
 seaborn
 tqdm
+psycopg2-binary
+python-dotenv

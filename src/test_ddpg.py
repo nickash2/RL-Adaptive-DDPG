@@ -3,13 +3,17 @@ from src.modified_ddpg import AdaptiveDDPG
 from src.utils.noise import OUNoise, NormalNoise
 from src.utils.metrictracker import MetricsTracker
 from src.utils.metricktrackercallback import MetricsTrackerCallback
+from src.utils.optunacallback import OptunaPruneCallback
 from src.main import create_env
 from loguru import logger
 import optuna
+from optuna.pruners import HyperbandPruner
 import json
+from dotenv import load_dotenv
+import os
 
 
-def test_ddpg(model_class, tracker, learning_starts, update_factor, batch_size, opt=False, sigma=0.05, *args, **kwargs):
+def test_ddpg(model_class, tracker, learning_starts, update_factor, batch_size, opt=False, sigma=0.05, optuna_callback=None, *args, **kwargs):
     filtered_kwargs = {k: v for k, v in kwargs.items() if k != 'agent_str'}
     num_runs = 1
 
@@ -32,7 +36,7 @@ def test_ddpg(model_class, tracker, learning_starts, update_factor, batch_size, 
                                 critic_lr=1e-3,
                                 actor_lr=1e-4,
                                 buffer_size=1e6,
-                                callback=[metrics_callback],
+                                callback=[metrics_callback, optuna_callback],
                                 update_interval=(update_factor, 'step'),
                                 learning_starts=learning_starts,
                                 log_dir=f"./runs/tune/{kwargs.get('agent_str', 'DDPG')}_run_{run}",
@@ -46,6 +50,7 @@ def test_ddpg(model_class, tracker, learning_starts, update_factor, batch_size, 
             logger.info(
                 f"Run {run + 1} - {kwargs.get('agent_str', 'DDPG')} complete!")
             env.close()
+
     except KeyboardInterrupt:
         logger.warning("Training interrupted by user")
         tracker.plot_metric("return", "return_test.png")
@@ -77,6 +82,7 @@ def compare_algs():
 
 
 def objective(trial, tracker, *args, **kwargs):
+    optuna_callback = OptunaPruneCallback(trial, verbose=0)
     alpha = trial.suggest_float("alpha", 0.0, 1.0)
     beta = trial.suggest_float("beta", 0.0, 1.0)
     tau_min = trial.suggest_float("tau_min", 0.001, 0.01)
@@ -88,17 +94,34 @@ def objective(trial, tracker, *args, **kwargs):
 
     agent_str = f"AdaptiveDDPG_{trial.number}"
     avg_return = test_ddpg(AdaptiveDDPG, tracker, alpha=alpha, beta=beta, tau_min=tau_min,
-                           tau_max=tau_max, agent_str=agent_str, sigma=sigma, opt=True, update_factor=update_factor, learning_starts=learning_starts, batch_size=batch_size)
+                           tau_max=tau_max, 
+                           agent_str=agent_str, 
+                           sigma=sigma, 
+                           opt=True, 
+                           update_factor=update_factor, 
+                           learning_starts=learning_starts, 
+                           batch_size=batch_size,
+                           optuna_callback=optuna_callback
+                           )
     return avg_return
 
 
 def optimize():
+    load_dotenv()
+    db_password = os.getenv("OPTUNA_DB_PASSWORD")
     tracker = MetricsTracker()
     try:
         study = optuna.create_study(
-            direction="maximize", study_name="DDPG + Mod Tuning", storage="sqlite:///tune.db", load_if_exists=True)
+            direction="maximize", 
+            study_name="DDPG + Mod Tuning",
+            storage=f"postgresql://optuna_user:{db_password}@localhost/optuna_db",
+            load_if_exists=True,
+            pruner=HyperbandPruner()
+            )
         study.optimize(lambda trial: objective(trial, tracker),
-                       n_trials=100, show_progress_bar=True)
+                       n_trials=100, 
+                       show_progress_bar=True
+                       )
     except KeyboardInterrupt:
         logger.warning("Optimization interrupted by user")
     finally:
