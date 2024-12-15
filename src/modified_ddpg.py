@@ -11,6 +11,7 @@ class AdaptiveDDPG(DDPG):
                 tau_min,
                 tau_max,
                 performance_metric = 0,
+                window_size: int = 100,
                 *args,
                 **kwargs
                 ) -> None:
@@ -20,15 +21,19 @@ class AdaptiveDDPG(DDPG):
         self.tau_min = tau_min
         self.tau_max = tau_max
         self.performance_metric = performance_metric
-        self.p_min = 1
-        self.p_max = 0
+        self.p_min = 1e12
+        self.p_max = -1e12
+        self.window_size = window_size
+
 
     def compute_performance_metric(self) -> None:
         # alpha * R_avg + beta * var(Q)
-        average_reward = np.mean(self.episode_rewards)
-        # Ensure self.critic.value is a tensor
+        if len(self.episode_rewards) > self.window_size:
+            average_reward = np.mean(self.episode_rewards[-self.window_size:])
+        else:
+            average_reward = np.mean(self.episode_rewards)
+
         if self.critic.critic_value is not None:
-            # Move to CPU and convert to NumPy
             critic_values = self.critic.critic_value
             var_Q = np.var(critic_values)
             new_performance_metric = self.alpha * average_reward + self.beta * var_Q
