@@ -1,4 +1,27 @@
 [![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/GhX0HoeG)
+
+# Requirements
+- Python 3.10
+
+# Run the Code
+## Create the environment 
+```bash
+python3.10 -m venv .env
+source .env/bin/activate
+python3.10 -m pip install -r requirements.txt
+```
+
+For stable baselines:
+```bash
+python3.10 -m src.main
+```
+
+For comparing our implementation with our modification
+```bash
+python3.10 -m src.test_ddpg
+```
+
+
 ## Code
 
 Your code should be clean, well-written and documented. You should use Python 3.

@@ -160,4 +160,8 @@ cython_debug/
 #.idea/
 
 .vscode/
+runs
 
+data.csv.monitor.csv
+metrics_test.pkl
+test.ipynb

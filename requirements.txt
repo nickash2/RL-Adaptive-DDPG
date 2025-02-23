@@ -1,0 +1,14 @@
+auto_mix_prep
+gymnasium[mujoco]
+matplotlib
+numpy
+pandas
+torch==2.5.1
+tensorboard==2.18.0
+stable-baselines3==2.4.0
+rl-zoo3
+loguru
+seaborn
+tqdm
+psycopg2-binary
+python-dotenv
