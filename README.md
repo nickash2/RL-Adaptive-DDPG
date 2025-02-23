@@ -1,4 +1,4 @@
-# A modified implementation of Deep Deterministic Policy Gradient (DDPG) with an adaptive target update rule
+# Deep Deterministic Policy Gradient (DDPG) with adaptive target update rule
 
 
 # Requirements
